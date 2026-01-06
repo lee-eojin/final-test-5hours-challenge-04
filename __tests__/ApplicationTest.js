@@ -1,14 +1,12 @@
-const MissionUtils = require('@woowacourse/mission-utils');
-const App = require('../src/App');
-const BridgeMaker = require('../src/BridgeMaker');
+import { MissionUtils } from '@woowacourse/mission-utils';
+import App from '../src/App.js';
+import BridgeMaker from '../src/BridgeMaker.js';
 
 const mockQuestions = (answers) => {
-  MissionUtils.Console.readLine = jest.fn();
+  MissionUtils.Console.readLineAsync = jest.fn();
   answers.reduce((acc, input) => {
-    return acc.mockImplementationOnce((_, callback) => {
-      callback(input);
-    });
-  }, MissionUtils.Console.readLine);
+    return acc.mockResolvedValueOnce(input);
+  }, MissionUtils.Console.readLineAsync);
 };
 
 const mockRandoms = (numbers) => {
@@ -28,12 +26,12 @@ const getOutput = (logSpy) => {
   return [...logSpy.mock.calls].join('');
 };
 
-const runException = (inputs) => {
+const runException = async (inputs) => {
   mockQuestions(inputs);
   const logSpy = getLogSpy();
   const app = new App();
 
-  app.play();
+  await app.play();
 
   expectLogContains(getOutput(logSpy), ['[ERROR]']);
 };
@@ -53,22 +51,23 @@ const expectBridgeOrder = (received, upside, downside) => {
 
 describe('다리 건너기 테스트', () => {
   test('다리 생성 테스트', () => {
-    const randomNumbers = ['1', '0', '0'];
+    const randomNumbers = [1, 0, 0];
     const mockGenerator = randomNumbers.reduce((acc, number) => {
       return acc.mockReturnValueOnce(number);
     }, jest.fn());
 
-    const bridge = BridgeMaker.makeBridge(3, mockGenerator);
+    const bridgeMaker = new BridgeMaker();
+    const bridge = bridgeMaker.makeBridge(3, mockGenerator);
     expect(bridge).toEqual(['U', 'D', 'D']);
   });
 
-  test('기능 테스트', () => {
+  test('기능 테스트', async () => {
     const logSpy = getLogSpy();
-    mockRandoms(['1', '0', '1']);
+    mockRandoms([1, 0, 1]);
     mockQuestions(['3', 'U', 'D', 'U']);
 
     const app = new App();
-    app.play();
+    await app.play();
 
     const log = getOutput(logSpy);
     expectLogContains(log, [
@@ -81,7 +80,8 @@ describe('다리 건너기 테스트', () => {
     expectBridgeOrder(log, '[ O |   | O ]', '[   | O |   ]');
   });
 
-  test('예외 테스트', () => {
-    runException(['a']);
+  test('예외 테스트', async () => {
+    mockRandoms([1, 0, 1]);
+    await runException(['a', '3', 'U', 'D', 'U']);
   });
 });
